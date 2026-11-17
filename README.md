@@ -53,9 +53,15 @@ npm install
 npm run dev
 ```
 
-O Vite mostra no terminal o endereço local para abrir no navegador. Durante o
-desenvolvimento, as requisições `/api` são encaminhadas para o backend em
-`http://localhost:3000`.
+O Vite mostra no terminal o endereço local para abrir no navegador. O frontend
+usa a API hospedada em `https://node-rpg-dinamico.onrender.com`. Para usar outro
+backend, crie `frontend/.env.local` e defina:
+
+```text
+VITE_API_BASE_URL=http://localhost:3000
+```
+
+O valor deve ser a URL base do backend, sem `/api` no final.
 
 Para gerar os arquivos de produção:
 

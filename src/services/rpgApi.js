@@ -1,4 +1,6 @@
-const API_BASE = "/api";
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL ?? "https://node-rpg-dinamico.onrender.com"
+).replace(/\/+$/, "");
 
 export async function apiRequest(path, { session, method = "GET", body } = {}) {
   const headers = {};
@@ -9,7 +11,7 @@ export async function apiRequest(path, { session, method = "GET", body } = {}) {
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${API_BASE}/api${path}`, {
     method,
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
