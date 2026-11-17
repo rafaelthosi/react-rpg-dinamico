@@ -1,60 +1,156 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProfileSelector from "../components/ProfileSelector.jsx";
+import { joinCampaign, login } from "../services/authService.js";
+import { apiRequest } from "../services/rpgApi.js";
 
 function LoginPage({ onLogin }) {
   const navigate = useNavigate();
-  const [perfil, setPerfil] = useState("");
+  const [profile, setProfile] = useState("player");
+  const [step, setStep] = useState("credentials");
+  const [session, setSession] = useState(null);
+  const [campaigns, setCampaigns] = useState([]);
+  const [campaignId, setCampaignId] = useState("");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [campaignPassword, setCampaignPassword] = useState("");
+  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleCredentials(event) {
     event.preventDefault();
-    onLogin();
-    navigate("/home");
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const authenticated = await login({ username, password });
+      if (String(authenticated.user.role).toLowerCase() !== profile) {
+        throw new Error("O perfil selecionado não corresponde a esta conta.");
+      }
+
+      if (profile === "gm") {
+        onLogin(authenticated);
+        navigate("/home");
+        return;
+      }
+
+      const availableCampaigns = await apiRequest("/campaigns", { session: authenticated });
+      setSession(authenticated);
+      setCampaigns(availableCampaigns);
+      setStep("campaign");
+      if (!availableCampaigns.length) {
+        setError("Esta conta ainda não está vinculada a uma campanha ativa. Peça ao GM para adicioná-la.");
+      }
+    } catch (loginError) {
+      setError(loginError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleCampaign(event) {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      await joinCampaign(session, campaignId, campaignPassword);
+      onLogin({ ...session, campaignId });
+      navigate("/home");
+    } catch (joinError) {
+      setError(joinError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
     <main className="login-content">
       <section className="surface-card login-card">
-        <p className="eyebrow">Bem-vindo de volta</p>
-        <h1 className="page-title">Entrar</h1>
+        <p className="eyebrow">RPG de mesa</p>
+        <h1 className="page-title">{step === "credentials" ? "Entrar" : "Acessar campanha"}</h1>
         <p className="description">
-          Preencha seus dados para continuar para a página inicial.
+          {step === "credentials"
+            ? "Entre com sua conta para acessar suas campanhas."
+            : "Escolha uma campanha vinculada à sua conta e informe a senha de acesso."}
         </p>
 
-        <form className="login-form" onSubmit={handleSubmit}>
-          <label htmlFor="username">Nome de usuário</label>
-          <input
-            autoComplete="username"
-            id="username"
-            name="username"
-            maxLength={15}
-            placeholder="Até 15 caracteres"
-            required
-            type="text"
-          />
+        {step === "credentials" ? (
+          <form className="login-form" onSubmit={handleCredentials}>
+            <label htmlFor="username">Nome de usuário</label>
+            <input
+              autoComplete="username"
+              id="username"
+              maxLength={50}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Seu nome de usuário"
+              required
+              value={username}
+            />
 
-          <label htmlFor="password">Senha</label>
-          <input
-            autoComplete="current-password"
-            id="password"
-            minLength={8}
-            name="password"
-            placeholder="Pelo menos 8 caracteres"
-            required
-            type="password"
-          />
+            <label htmlFor="password">Senha</label>
+            <input
+              autoComplete="current-password"
+              id="password"
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Sua senha"
+              required
+              type="password"
+              value={password}
+            />
 
-          <ProfileSelector value={perfil} onChange={setPerfil} required />
+            <ProfileSelector onChange={setProfile} value={profile} required />
+            {error && <p className="login-error" role="alert">{error}</p>}
+            <button className="primary-button" disabled={isSubmitting} type="submit">
+              {isSubmitting ? "Validando..." : "Continuar"}
+            </button>
+          </form>
+        ) : (
+          <form className="login-form" onSubmit={handleCampaign}>
+            <label htmlFor="campaign">Campanha</label>
+            <select
+              id="campaign"
+              onChange={(event) => setCampaignId(event.target.value)}
+              required
+              value={campaignId}
+            >
+              <option value="">Selecione uma campanha</option>
+              {campaigns.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>{campaign.name}</option>
+              ))}
+            </select>
 
-          <button className="primary-button" type="submit">
-            Entrar
-          </button>
-        </form>
+            <label htmlFor="campaignPassword">Senha da campanha</label>
+            <input
+              autoComplete="off"
+              id="campaignPassword"
+              onChange={(event) => setCampaignPassword(event.target.value)}
+              required
+              type="password"
+              value={campaignPassword}
+            />
 
-        <p className="login-note">
-          Este formulário verifica apenas os campos no navegador. A
-          autenticação real ainda precisa ser conectada a um backend.
-        </p>
+            {error && <p className="login-error" role="alert">{error}</p>}
+            <button
+              className="primary-button"
+              disabled={isSubmitting || !campaigns.length}
+              type="submit"
+            >
+              {isSubmitting ? "Entrando..." : "Entrar na campanha"}
+            </button>
+            <button
+              className="secondary-button"
+              disabled={isSubmitting}
+              onClick={() => {
+                setStep("credentials");
+                setError("");
+              }}
+              type="button"
+            >
+              Voltar
+            </button>
+          </form>
+        )}
       </section>
     </main>
   );

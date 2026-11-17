@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 
-function Header() {
+function Header({ onLogout }) {
   return (
     <header className="site-header">
       <Link className="brand" to="/home">
         <span className="brand-mark">R</span>
-        <span>Meu projeto</span>
+        <span>Crônicas</span>
       </Link>
-      <span className="header-note">React + Vite</span>
+      <button className="text-button" onClick={onLogout} type="button">
+        Sair
+      </button>
     </header>
   );
 }

@@ -1,7 +1,7 @@
 function ProfileSelector({ value, onChange, required = false }) {
   const profiles = [
-    { value: "mestre", label: "Mestre" },
-    { value: "jogador", label: "Jogador" },
+    { value: "gm", label: "GM" },
+    { value: "player", label: "Jogador" },
   ];
 
   return (

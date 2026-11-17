@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
-import CharacterPage from "./pages/CharacterPage.jsx";
+import CampaignPage from "./pages/CampaignPage.jsx";
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [session, setSession] = useState(null);
+  const isAuthenticated = Boolean(session?.token);
 
   return (
     <Routes>
@@ -15,22 +16,22 @@ function App() {
         element={
           isAuthenticated
             ? ( <Navigate to="/home" replace /> )
-            : ( <LoginPage onLogin={() => setIsAuthenticated(true)} /> )
+            : ( <LoginPage onLogin={setSession} /> )
         }
       />
       <Route
         path="/home"
         element={
           isAuthenticated
-            ? <HomePage />
+            ? <HomePage session={session} onLogout={() => setSession(null)} />
             : <Navigate to="/login" replace />
         }
       />
       <Route
-        path="/character"
+        path="/campaigns/:campaignId"
         element={
           isAuthenticated
-            ? <CharacterPage />
+            ? <CampaignPage session={session} onLogout={() => setSession(null)} />
             : <Navigate to="/login" replace />
         }
       />
