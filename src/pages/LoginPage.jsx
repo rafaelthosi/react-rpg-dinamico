@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ProfileSelector from "../components/ProfileSelector.jsx";
-import { joinCampaign, login } from "../services/authService.js";
+import { joinCampaign, login, registerGM } from "../services/authService.js";
 import { apiRequest } from "../services/rpgApi.js";
 
 function LoginPage({ onLogin }) {
@@ -16,6 +16,22 @@ function LoginPage({ onLogin }) {
   const [campaignPassword, setCampaignPassword] = useState("");
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleRegistration(event) {
+    event.preventDefault();
+    setError("");
+    setIsSubmitting(true);
+
+    try {
+      const authenticated = await registerGM({ username, password });
+      onLogin(authenticated);
+      navigate("/home");
+    } catch (registrationError) {
+      setError(registrationError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
 
   async function handleCredentials(event) {
     event.preventDefault();
@@ -68,11 +84,19 @@ function LoginPage({ onLogin }) {
     <main className="login-content">
       <section className="surface-card login-card">
         <p className="eyebrow">RPG de mesa</p>
-        <h1 className="page-title">{step === "credentials" ? "Entrar" : "Acessar campanha"}</h1>
+        <h1 className="page-title">
+          {step === "credentials"
+            ? "Entrar"
+            : step === "registration"
+              ? "Criar conta GM"
+              : "Acessar campanha"}
+        </h1>
         <p className="description">
           {step === "credentials"
             ? "Entre com sua conta para acessar suas campanhas."
-            : "Escolha uma campanha vinculada à sua conta e informe a senha de acesso."}
+            : step === "registration"
+              ? "Crie sua conta para começar a mestrar suas campanhas."
+              : "Escolha uma campanha vinculada à sua conta e informe a senha de acesso."}
         </p>
 
         {step === "credentials" ? (
@@ -103,6 +127,65 @@ function LoginPage({ onLogin }) {
             {error && <p className="login-error" role="alert">{error}</p>}
             <button className="primary-button" disabled={isSubmitting} type="submit">
               {isSubmitting ? "Validando..." : "Continuar"}
+            </button>
+            <button
+              className="secondary-button"
+              disabled={isSubmitting}
+              onClick={() => {
+                setStep("registration");
+                setError("");
+              }}
+              type="button"
+            >
+              Criar conta
+            </button>
+          </form>
+        ) : step === "registration" ? (
+          <form className="login-form" onSubmit={handleRegistration}>
+            <aside className="login-role-note">
+              <strong>Esta conta será criada com o perfil GM (Mestre).</strong>
+              <p>Com esse perfil, você poderá criar e gerenciar campanhas.</p>
+            </aside>
+
+            <label htmlFor="username">Nome de usuário</label>
+            <input
+              autoComplete="username"
+              id="username"
+              maxLength={50}
+              minLength={3}
+              onChange={(event) => setUsername(event.target.value)}
+              placeholder="Seu nome de usuário"
+              required
+              value={username}
+            />
+
+            <label htmlFor="password">Senha (mínimo de 12 caracteres)</label>
+            <input
+              autoComplete="new-password"
+              id="password"
+              maxLength={200}
+              minLength={12}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="Crie uma senha"
+              required
+              type="password"
+              value={password}
+            />
+
+            {error && <p className="login-error" role="alert">{error}</p>}
+            <button className="primary-button" disabled={isSubmitting} type="submit">
+              {isSubmitting ? "Criando conta..." : "Cadastrar como GM"}
+            </button>
+            <button
+              className="secondary-button"
+              disabled={isSubmitting}
+              onClick={() => {
+                setStep("credentials");
+                setError("");
+              }}
+              type="button"
+            >
+              Já tenho uma conta
             </button>
           </form>
         ) : (

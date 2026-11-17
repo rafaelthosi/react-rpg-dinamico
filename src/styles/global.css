@@ -263,6 +263,20 @@ textarea {
   line-height: 1.5;
 }
 
+.login-role-note {
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-primary);
+  border-radius: 8px;
+  background: #f1e8e5;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.login-role-note p {
+  margin: 4px 0 0;
+  color: var(--color-muted);
+}
+
 .login-error {
   margin: 4px 0 0;
   color: #a12622;
