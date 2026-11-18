@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import Header from "../components/Header.jsx";
-import { apiRequest } from "../services/rpgApi.js";
+import { apiRequest, getCampaignStructure } from "../services/rpgApi.js";
 
 function CombatPage({ session, onLogout }) {
   const { combatId } = useParams();
@@ -11,15 +11,36 @@ function CombatPage({ session, onLogout }) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [selectedTargets, setSelectedTargets] = useState([]);
+  const [characters, setCharacters] = useState([]);
+  const [sections, setSections] = useState([]);
+  const [showParticipantForm, setShowParticipantForm] = useState(false);
+  const [participantKind, setParticipantKind] = useState("character");
+  const [participantCharacterId, setParticipantCharacterId] = useState("");
+  const [npcName, setNpcName] = useState("");
+  const [npcIsEnemy, setNpcIsEnemy] = useState(true);
+  const [npcFieldValues, setNpcFieldValues] = useState({});
   const orderedCombatants = useMemo(
     () => [...(combat?.combatants ?? [])].sort((a, b) => b.initiative - a.initiative),
     [combat?.combatants],
+  );
+  const sharedFields = useMemo(
+    () => sections.flatMap((section) => section.fields).filter((field) => field.shareWithNpcs),
+    [sections],
   );
   const currentCombatant = orderedCombatants[combat?.currentTurnIndex ?? 0];
 
   async function loadCombat() {
     try {
-      setCombat(await apiRequest(`/combats/${combatId}`, { session }));
+      const loadedCombat = await apiRequest(`/combats/${combatId}`, { session });
+      setCombat(loadedCombat);
+      if (isGM) {
+        const [charactersResult, sectionsResult] = await Promise.all([
+          apiRequest(`/campaigns/${loadedCombat.campaignId}/characters`, { session }),
+          getCampaignStructure(session, loadedCombat.campaignId),
+        ]);
+        setCharacters(charactersResult);
+        setSections(sectionsResult);
+      }
       setError("");
     } catch (loadError) {
       setError(loadError.message);
@@ -81,6 +102,44 @@ function CombatPage({ session, onLogout }) {
     }
   }
 
+  async function addParticipant(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    setIsSaving(true);
+    setError("");
+    try {
+      const participant = participantKind === "character"
+        ? { characterId: participantCharacterId }
+        : {
+          name: npcName,
+          isEnemy: npcIsEnemy,
+          fieldValues: sharedFields.map((field) => ({
+            fieldId: field.id,
+            value: npcFieldValues[field.id] ?? "",
+          })),
+        };
+      const updated = await apiRequest(`/combats/${combatId}/participants`, {
+        session,
+        method: "POST",
+        body: {
+          ...participant,
+          initiative: Number(data.get("initiative")),
+          actionsPerTurn: Number(data.get("actionsPerTurn")),
+        },
+      });
+      setCombat(updated);
+      setShowParticipantForm(false);
+      setParticipantCharacterId("");
+      setNpcName("");
+      setNpcFieldValues({});
+      event.currentTarget.reset();
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const actionsUsed = combat?.actions.filter((action) => (
     action.round === combat.currentRound && action.combatantId === currentCombatant?.id
   )).length ?? 0;
@@ -114,6 +173,131 @@ function CombatPage({ session, onLogout }) {
                 </div>
               )}
             </section>
+
+            {isGM && (
+              <section className="manager-section">
+                {!showParticipantForm ? (
+                  <button className="secondary-button" onClick={() => setShowParticipantForm(true)} type="button">
+                    Adicionar personagem ou NPC
+                  </button>
+                ) : (
+                  <form className="surface-card form-card form-grid" onSubmit={addParticipant}>
+                    <h2 className="form-grid__full">Adicionar participante</h2>
+                    <label>
+                      Tipo
+                      <select
+                        onChange={(event) => setParticipantKind(event.target.value)}
+                        value={participantKind}
+                      >
+                        <option value="character">Personagem</option>
+                        <option value="npc">NPC/criatura</option>
+                      </select>
+                    </label>
+                    {participantKind === "character" ? (
+                      <label>
+                        Personagem
+                        <select
+                          onChange={(event) => setParticipantCharacterId(event.target.value)}
+                          required
+                          value={participantCharacterId}
+                        >
+                          <option value="">Selecione</option>
+                          {characters
+                            .filter((character) => !combat.combatants.some((item) => item.characterId === character.id))
+                            .map((character) => (
+                              <option key={character.id} value={character.id}>{character.name}</option>
+                            ))}
+                        </select>
+                      </label>
+                    ) : (
+                      <>
+                        <label>
+                          Nome do NPC/criatura
+                          <input
+                            maxLength={255}
+                            onChange={(event) => setNpcName(event.target.value)}
+                            required
+                            value={npcName}
+                          />
+                        </label>
+                        <label className="checkbox-label">
+                          <input
+                            checked={npcIsEnemy}
+                            onChange={(event) => setNpcIsEnemy(event.target.checked)}
+                            type="checkbox"
+                          />
+                          Inimigo
+                        </label>
+                        {sharedFields.map((field) => {
+                          const value = npcFieldValues[field.id] ?? "";
+                          const setValue = (nextValue) => setNpcFieldValues((current) => ({
+                            ...current,
+                            [field.id]: nextValue,
+                          }));
+                          if (field.type === "SELECT" || field.type === "BOOLEAN") {
+                            return (
+                              <label key={field.id}>
+                                {field.label}{field.required ? " *" : ""}
+                                <select onChange={(event) => setValue(event.target.value)} required={field.required} value={value}>
+                                  <option value="">Selecione</option>
+                                  {field.type === "SELECT" ? field.options.map((option) => (
+                                    <option key={option.id} value={option.value}>{option.label}</option>
+                                  )) : (
+                                    <>
+                                      <option value="true">Sim</option>
+                                      <option value="false">Não</option>
+                                    </>
+                                  )}
+                                </select>
+                              </label>
+                            );
+                          }
+                          if (field.type === "CHECKBOX") {
+                            return (
+                              <label className="checkbox-label" key={field.id}>
+                                <input checked={value === "true"} onChange={(event) => setValue(String(event.target.checked))} type="checkbox" />
+                                {field.label}
+                              </label>
+                            );
+                          }
+                          if (field.type === "TEXTAREA") {
+                            return (
+                              <label key={field.id}>
+                                {field.label}{field.required ? " *" : ""}
+                                <textarea maxLength={10000} onChange={(event) => setValue(event.target.value)} required={field.required} value={value} />
+                              </label>
+                            );
+                          }
+                          const type = field.type === "NUMBER" || field.type === "DATE" ? field.type.toLowerCase() : "text";
+                          return (
+                            <label key={field.id}>
+                              {field.label}{field.required ? " *" : ""}
+                              <input maxLength={type === "text" ? 10000 : undefined} onChange={(event) => setValue(event.target.value)} required={field.required} type={type} value={value} />
+                            </label>
+                          );
+                        })}
+                      </>
+                    )}
+                    <label>
+                      Iniciativa
+                      <input min={0} name="initiative" required type="number" defaultValue={0} />
+                    </label>
+                    <label>
+                      Ações por turno
+                      <input min={1} name="actionsPerTurn" required type="number" defaultValue={1} />
+                    </label>
+                    <div className="button-row form-grid__full">
+                      <button className="primary-button" disabled={isSaving} type="submit">
+                        {isSaving ? "Adicionando..." : "Adicionar"}
+                      </button>
+                      <button className="secondary-button" onClick={() => setShowParticipantForm(false)} type="button">
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </section>
+            )}
 
             <section className="combat-layout">
               <article className="surface-card combat-panel">
