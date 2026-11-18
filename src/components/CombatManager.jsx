@@ -5,6 +5,8 @@ import { apiRequest } from "../services/rpgApi.js";
 function CombatManager({ campaignId, characters, sections, session }) {
   const [combats, setCombats] = useState([]);
   const [participants, setParticipants] = useState([]);
+  const [gridRows, setGridRows] = useState(10);
+  const [gridColumns, setGridColumns] = useState(10);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const sharedFields = sections.flatMap((section) => section.fields)
@@ -25,13 +27,13 @@ function CombatManager({ campaignId, characters, sections, session }) {
 
   function addPlayer() {
     setParticipants((current) => [...current, {
-      kind: "character", characterId: "", initiative: 0, actionsPerTurn: 1,
+      kind: "character", characterId: "", initiative: 0, actionsPerTurn: 1, position: "",
     }]);
   }
 
   function addNpc() {
     setParticipants((current) => [...current, {
-      kind: "npc", name: "", isEnemy: true, initiative: 0, actionsPerTurn: 1,
+      kind: "npc", name: "", isEnemy: true, initiative: 0, actionsPerTurn: 1, position: "",
       fieldValues: Object.fromEntries(sharedFields.map((field) => [
         field.id,
         field.type === "CHECKBOX" ? "false" : "",
@@ -57,6 +59,8 @@ function CombatManager({ campaignId, characters, sections, session }) {
         method: "POST",
         body: {
           name,
+          gridRows: Number(gridRows),
+          gridColumns: Number(gridColumns),
           participants: participants.map((participant) => ({
             ...(participant.kind === "character"
               ? { characterId: participant.characterId }
@@ -70,11 +74,14 @@ function CombatManager({ campaignId, characters, sections, session }) {
               }),
             initiative: Number(participant.initiative),
             actionsPerTurn: Number(participant.actionsPerTurn),
+            position: participant.position,
           })),
         },
       });
       form.reset();
       setParticipants([]);
+      setGridRows(10);
+      setGridColumns(10);
       await loadCombats();
     } catch (createError) {
       setError(createError.message);
@@ -107,6 +114,8 @@ function CombatManager({ campaignId, characters, sections, session }) {
       <form className="surface-card form-card form-grid" onSubmit={createCombat}>
         <h3>Novo combate</h3>
         <label>Nome do combate<input maxLength={255} name="combatName" required /></label>
+        <label>Tamanho do grid (linhas)<input max={100} min={1} onChange={(event) => setGridRows(event.target.value)} required type="number" value={gridRows} /></label>
+        <label>Tamanho do grid (colunas)<input max={100} min={1} onChange={(event) => setGridColumns(event.target.value)} required type="number" value={gridColumns} /></label>
         <div className="button-row">
           <button className="secondary-button" onClick={addPlayer} type="button">Adicionar personagem</button>
           <button className="secondary-button" onClick={addNpc} type="button">Adicionar NPC/criatura</button>
@@ -123,9 +132,11 @@ function CombatManager({ campaignId, characters, sections, session }) {
                     value={participant.characterId}
                   >
                     <option value="">Selecione</option>
-                    {characters.map((character) => (
+                    {characters
+                      .filter((character) => !participants.some((item) => item.characterId === character.id))
+                      .map((character) => (
                       <option key={character.id} value={character.id}>{character.name}</option>
-                    ))}
+                      ))}
                   </select>
                 </label>
               ) : (
@@ -185,6 +196,17 @@ function CombatManager({ campaignId, characters, sections, session }) {
                   })}
                 </>
               )}
+              <label>
+                Posição no grid (ex.: b12)
+                <input
+                  maxLength={5}
+                  onChange={(event) => updateParticipant(index, "position", event.target.value)}
+                  pattern="[a-zA-Z]+[1-9][0-9]*"
+                  placeholder="a1"
+                  required
+                  value={participant.position}
+                />
+              </label>
               <label>Iniciativa<input min={0} onChange={(event) => updateParticipant(index, "initiative", event.target.value)} required type="number" value={participant.initiative} /></label>
               <label>Ações por turno<input min={1} onChange={(event) => updateParticipant(index, "actionsPerTurn", event.target.value)} required type="number" value={participant.actionsPerTurn} /></label>
               <button

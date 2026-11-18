@@ -635,9 +635,26 @@ textarea:disabled {
 
 .combat-layout {
   display: grid;
-  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.3fr) minmax(0, 1fr);
   align-items: start;
   gap: 20px;
+}
+
+.action-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.action-fields > label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 650;
 }
 
 .combat-panel {
@@ -647,6 +664,111 @@ textarea:disabled {
 
 .combat-panel h2 {
   margin: 0;
+}
+
+.combat-grid-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.combat-grid-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.combat-grid-heading h2 {
+  margin-bottom: 6px;
+}
+
+.combat-grid-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.combat-grid-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.combat-grid-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.combat-grid-scroll {
+  max-width: 100%;
+  overflow: auto;
+  padding: 4px 0 10px;
+}
+
+.combat-grid-board {
+  display: grid;
+  width: max-content;
+  border-top: 1px solid var(--color-border);
+  border-left: 1px solid var(--color-border);
+}
+
+.combat-grid-axis-corner,
+.combat-grid-axis-label {
+  display: grid;
+  min-width: 28px;
+  min-height: 28px;
+  place-items: center;
+  background: #ede6da;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.combat-grid-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background-color: #fffdf8;
+  background-image:
+    linear-gradient(rgb(200 185 159 / 20%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(200 185 159 / 20%) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+.combat-grid-token {
+  display: grid;
+  width: min(80%, 32px);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid rgb(0 0 0 / 18%);
+  border-radius: 50%;
+  color: white;
+  font-size: clamp(9px, 2vw, 12px);
+  font-weight: 800;
+}
+
+.combat-grid-token--player-character {
+  background: #2563eb;
+}
+
+.combat-grid-token--own-character {
+  background: #eab308;
+  color: #30271f;
+}
+
+.combat-grid-token--ally {
+  background: #16a34a;
+}
+
+.combat-grid-token--enemy {
+  background: #dc2626;
 }
 
 .initiative-list {
@@ -712,6 +834,10 @@ textarea:disabled {
 @media (max-width: 760px) {
   .combat-layout {
     grid-template-columns: 1fr;
+  }
+
+  .combat-grid-heading {
+    align-items: center;
   }
 }
 

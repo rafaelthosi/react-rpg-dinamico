@@ -40,6 +40,12 @@ function PlayerCharacterPage({ session, onLogout }) {
     loadPage();
   }, [characterId, session.token, session.campaignId]);
 
+  useEffect(() => {
+    if (character && !isLoading && window.location.hash === "#attacks") {
+      document.getElementById("attacks")?.scrollIntoView();
+    }
+  }, [character, isLoading]);
+
   async function saveAttack(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -104,7 +110,7 @@ function PlayerCharacterPage({ session, onLogout }) {
               sections={sections}
               session={session}
             />
-            <section className="manager-section attacks-section">
+            <section className="manager-section attacks-section" id="attacks">
               <div className="manager-heading">
                 <div>
                   <h2>Ataques</h2>

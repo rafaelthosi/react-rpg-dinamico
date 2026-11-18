@@ -110,6 +110,9 @@ function PlayerPage({ session, onLogout }) {
                   <Link className="secondary-button" to="/combats">
                     Combates
                   </Link>
+                  <Link className="secondary-button" to={`/characters/${character.id}#attacks`}>
+                    Ataques
+                  </Link>
                 </div>
               </article>
             ))}

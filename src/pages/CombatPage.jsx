@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import CombatGrid from "../components/CombatGrid.jsx";
 import Header from "../components/Header.jsx";
 import { apiRequest, getCampaignStructure } from "../services/rpgApi.js";
 
@@ -16,9 +17,14 @@ function CombatPage({ session, onLogout }) {
   const [showParticipantForm, setShowParticipantForm] = useState(false);
   const [participantKind, setParticipantKind] = useState("character");
   const [participantCharacterId, setParticipantCharacterId] = useState("");
+  const [participantPosition, setParticipantPosition] = useState("");
   const [npcName, setNpcName] = useState("");
   const [npcIsEnemy, setNpcIsEnemy] = useState(true);
   const [npcFieldValues, setNpcFieldValues] = useState({});
+  const [attacksByCharacter, setAttacksByCharacter] = useState({});
+  const [actionType, setActionType] = useState("FREE");
+  const [actionPosition, setActionPosition] = useState("");
+  const [isEditingGrid, setIsEditingGrid] = useState(false);
   const orderedCombatants = useMemo(
     () => [...(combat?.combatants ?? [])].sort((a, b) => b.initiative - a.initiative),
     [combat?.combatants],
@@ -28,6 +34,18 @@ function CombatPage({ session, onLogout }) {
     [sections],
   );
   const currentCombatant = orderedCombatants[combat?.currentTurnIndex ?? 0];
+  const availableAttacks = attacksByCharacter[currentCombatant?.characterId] ?? [];
+  const actionsUsed = combat?.actions.reduce((total, action) => (
+    action.round === combat.currentRound && action.combatantId === currentCombatant?.id
+      ? total + (action.actionsCount ?? 1)
+      : total
+  ), 0) ?? 0;
+  const actionsRemaining = currentCombatant
+    ? Math.max(0, currentCombatant.actionsPerTurn - actionsUsed)
+    : 0;
+  const actionAvailable = Boolean(combat?.active && currentCombatant && actionsRemaining > 0);
+  const canAct = Boolean(actionAvailable && (isGM || currentCombatant?.isMine));
+  const canSeeAction = Boolean(isGM || combat?.combatants.some((item) => item.isMine));
 
   async function loadCombat() {
     try {
@@ -41,6 +59,13 @@ function CombatPage({ session, onLogout }) {
         setCharacters(charactersResult);
         setSections(sectionsResult);
       }
+      const attackLists = await Promise.all(loadedCombat.combatants
+        .filter((item) => item.characterId && (isGM || item.isMine))
+        .map(async (item) => [
+          item.characterId,
+          await apiRequest(`/characters/${item.characterId}/attacks`, { session }),
+        ]));
+      setAttacksByCharacter(Object.fromEntries(attackLists));
       setError("");
     } catch (loadError) {
       setError(loadError.message);
@@ -53,32 +78,11 @@ function CombatPage({ session, onLogout }) {
     loadCombat();
   }, [combatId, session.token]);
 
-  async function submitAction(event) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = new FormData(form);
-    setIsSaving(true);
-    setError("");
-    try {
-      const updated = await apiRequest(`/combats/${combatId}/actions`, {
-        session,
-        method: "POST",
-        body: {
-          combatantId: currentCombatant.id,
-          description: data.get("description"),
-          damage: data.get("damage"),
-          targets: selectedTargets,
-        },
-      });
-      setCombat(updated);
-      setSelectedTargets([]);
-      form.reset();
-    } catch (saveError) {
-      setError(saveError.message);
-    } finally {
-      setIsSaving(false);
-    }
-  }
+  useEffect(() => {
+    setActionPosition(currentCombatant?.position ?? "");
+    setActionType("FREE");
+    setSelectedTargets([]);
+  }, [currentCombatant?.id, currentCombatant?.position]);
 
   async function advanceTurn() {
     setError("");
@@ -102,17 +106,42 @@ function CombatPage({ session, onLogout }) {
     }
   }
 
+  async function updateGrid(event) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setError("");
+    setIsSaving(true);
+    try {
+      const updated = await apiRequest(`/combats/${combatId}/grid`, {
+        session,
+        method: "PATCH",
+        body: {
+          gridRows: Number(form.get("gridRows")),
+          gridColumns: Number(form.get("gridColumns")),
+        },
+      });
+      setCombat(updated);
+      setIsEditingGrid(false);
+    } catch (updateError) {
+      setError(updateError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   async function addParticipant(event) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const data = new FormData(form);
     setIsSaving(true);
     setError("");
     try {
       const participant = participantKind === "character"
-        ? { characterId: participantCharacterId }
+        ? { characterId: participantCharacterId, position: participantPosition }
         : {
           name: npcName,
           isEnemy: npcIsEnemy,
+          position: participantPosition,
           fieldValues: sharedFields.map((field) => ({
             fieldId: field.id,
             value: npcFieldValues[field.id] ?? "",
@@ -130,9 +159,11 @@ function CombatPage({ session, onLogout }) {
       setCombat(updated);
       setShowParticipantForm(false);
       setParticipantCharacterId("");
+      setParticipantPosition("");
       setNpcName("");
       setNpcFieldValues({});
-      event.currentTarget.reset();
+      form.reset();
+      await loadCombat();
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -140,10 +171,39 @@ function CombatPage({ session, onLogout }) {
     }
   }
 
-  const actionsUsed = combat?.actions.filter((action) => (
-    action.round === combat.currentRound && action.combatantId === currentCombatant?.id
-  )).length ?? 0;
-  const actionAvailable = combat?.active && currentCombatant && actionsUsed < currentCombatant.actionsPerTurn;
+  async function submitAction(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    setIsSaving(true);
+    setError("");
+    try {
+      const updated = await apiRequest(`/combats/${combatId}/actions`, {
+        session,
+        method: "POST",
+        body: {
+          combatantId: currentCombatant.id,
+          description: data.get("description"),
+          actionType,
+          ...(actionType === "ATTACK"
+            ? { attackId: data.get("attackId") }
+            : { actionsCount: Number(data.get("actionsCount")) }),
+          damage: data.get("damage") ?? "",
+          position: data.get("position"),
+          targets: selectedTargets,
+        },
+      });
+      setCombat(updated);
+      setSelectedTargets([]);
+      setActionType("FREE");
+      form.reset();
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   const returnPath = isGM && combat ? `/campaigns/${combat.campaignId}` : "/combats";
 
   return (
@@ -176,6 +236,36 @@ function CombatPage({ session, onLogout }) {
 
             {isGM && (
               <section className="manager-section">
+                {!isEditingGrid ? (
+                  <div className="button-row">
+                    <button
+                      className="secondary-button"
+                      disabled={!combat.active}
+                      onClick={() => setIsEditingGrid(true)}
+                      type="button"
+                    >
+                      Editar tamanho do grid
+                    </button>
+                    {!combat.active && <p className="muted-text">O grid só pode ser editado durante um combate em andamento.</p>}
+                  </div>
+                ) : (
+                  <form className="surface-card form-card inline-form" onSubmit={updateGrid}>
+                    <label>
+                      Linhas
+                      <input defaultValue={combat.gridRows} max={100} min={1} name="gridRows" required type="number" />
+                    </label>
+                    <label>
+                      Colunas
+                      <input defaultValue={combat.gridColumns} max={100} min={1} name="gridColumns" required type="number" />
+                    </label>
+                    <button className="primary-button" disabled={isSaving} type="submit">
+                      {isSaving ? "Salvando..." : "Salvar grid"}
+                    </button>
+                    <button className="secondary-button" onClick={() => setIsEditingGrid(false)} type="button">
+                      Cancelar
+                    </button>
+                  </form>
+                )}
                 {!showParticipantForm ? (
                   <button className="secondary-button" onClick={() => setShowParticipantForm(true)} type="button">
                     Adicionar personagem ou NPC
@@ -279,6 +369,17 @@ function CombatPage({ session, onLogout }) {
                       </>
                     )}
                     <label>
+                      Posição no grid (ex.: b12)
+                      <input
+                        maxLength={5}
+                        onChange={(event) => setParticipantPosition(event.target.value)}
+                        pattern="[a-zA-Z]+[1-9][0-9]*"
+                        placeholder="a1"
+                        required
+                        value={participantPosition}
+                      />
+                    </label>
+                    <label>
                       Iniciativa
                       <input min={0} name="initiative" required type="number" defaultValue={0} />
                     </label>
@@ -327,37 +428,101 @@ function CombatPage({ session, onLogout }) {
                 </ol>
               </article>
 
-              {actionAvailable && (isGM || currentCombatant.isMine) && (
+              <CombatGrid
+                asPlayer={!isGM}
+                combatants={combat.combatants}
+                columns={combat.gridColumns}
+                rows={combat.gridRows}
+              />
+
+              {currentCombatant && canSeeAction && (
                 <form className="surface-card form-card form-grid combat-panel" onSubmit={submitAction}>
                   <h2 className="form-grid__full">Ação de {currentCombatant.name}</h2>
                   <p className="description form-grid__full">
-                    Ações restantes nesta vez: {currentCombatant.actionsPerTurn - actionsUsed}
+                    {canAct
+                      ? `Ações restantes nesta vez: ${actionsRemaining}`
+                      : "Os campos serão habilitados quando for a vez do seu personagem."}
                   </p>
-                  <label>Descrição<textarea maxLength={10000} name="description" required rows={3} /></label>
-                  <label>Dano (opcional)<input maxLength={255} name="damage" placeholder="1d4 ou 4" /></label>
-                  <fieldset className="form-grid__full target-picker">
-                    <legend>Alvos (opcional)</legend>
-                    {combat.combatants.filter((item) => item.id !== currentCombatant.id).map((target) => (
-                      <label className="checkbox-label" key={target.id}>
-                        <input
-                          checked={selectedTargets.includes(target.id)}
-                          onChange={(event) => setSelectedTargets((current) => (
-                            event.target.checked
-                              ? [...current, target.id]
-                              : current.filter((id) => id !== target.id)
+                  <fieldset className="form-grid__full action-fields" disabled={!canAct || isSaving}>
+                    <label>
+                      Descrição
+                      <textarea maxLength={10000} name="description" required rows={3} />
+                    </label>
+                    <label>
+                      Tipo de ação
+                      <select onChange={(event) => setActionType(event.target.value)} value={actionType}>
+                        <option value="FREE">Livre</option>
+                        {availableAttacks.length > 0 && <option value="ATTACK">Ataque</option>}
+                      </select>
+                    </label>
+                    {actionType === "ATTACK" ? (
+                      <label>
+                        Ataque
+                        <select defaultValue="" name="attackId" required>
+                          <option value="">Selecione</option>
+                          {availableAttacks.map((attack) => (
+                            <option
+                              disabled={attack.actionsConsumed > actionsRemaining}
+                              key={attack.id}
+                              value={attack.id}
+                            >
+                              {attack.name} · {attack.actionsConsumed} ação(ões)
+                            </option>
                           ))}
-                          type="checkbox"
-                        />
-                        {target.name}
+                        </select>
                       </label>
-                    ))}
-                    {!combat.combatants.some((item) => item.id !== currentCombatant.id) && (
-                      <p className="description">Não há outros participantes para selecionar.</p>
+                    ) : (
+                      <label>
+                        Quantidade de ações
+                        <input
+                          defaultValue={1}
+                          max={Math.max(1, actionsRemaining)}
+                          min={1}
+                          name="actionsCount"
+                          required
+                          type="number"
+                        />
+                      </label>
                     )}
+                    <label>
+                      Posição no grid
+                      <input
+                        maxLength={5}
+                        name="position"
+                        onChange={(event) => setActionPosition(event.target.value)}
+                        pattern="[a-zA-Z]+[1-9][0-9]*"
+                        required
+                        value={actionPosition}
+                      />
+                    </label>
+                    <label>
+                      Quantidade de dano causado (opcional)
+                      <input min={0} name="damage" step="any" type="number" />
+                    </label>
+                    <fieldset className="form-grid__full target-picker">
+                      <legend>Alvos (opcional)</legend>
+                      {combat.combatants.filter((item) => item.id !== currentCombatant.id).map((target) => (
+                        <label className="checkbox-label" key={target.id}>
+                          <input
+                            checked={selectedTargets.includes(target.id)}
+                            onChange={(event) => setSelectedTargets((current) => (
+                              event.target.checked
+                                ? [...current, target.id]
+                                : current.filter((id) => id !== target.id)
+                            ))}
+                            type="checkbox"
+                          />
+                          {target.name}
+                        </label>
+                      ))}
+                      {!combat.combatants.some((item) => item.id !== currentCombatant.id) && (
+                        <p className="description">Não há outros participantes para selecionar.</p>
+                      )}
+                    </fieldset>
+                    <button className="primary-button form-grid__full" disabled={isSaving} type="submit">
+                      {isSaving ? "Registrando..." : "Registrar ação"}
+                    </button>
                   </fieldset>
-                  <button className="primary-button form-grid__full" disabled={isSaving} type="submit">
-                    {isSaving ? "Registrando..." : "Registrar ação"}
-                  </button>
                 </form>
               )}
             </section>
@@ -374,8 +539,14 @@ function CombatPage({ session, onLogout }) {
                     <article className="surface-card action-card" key={action.id}>
                       <p className="eyebrow">Rodada {action.round} · {actor?.name ?? "Personagem removido"}</p>
                       <p>{action.description}</p>
+                      <p className="muted-text">
+                        {action.actionType === "ATTACK"
+                          ? `Ataque: ${action.attackName ?? "Ataque removido"}`
+                          : `Ação livre · ${action.actionsCount ?? 1} ação(ões)`}
+                        {" · Posição: "}{action.position}
+                      </p>
                       {targets.length > 0 && <p className="muted-text">Alvos: {targets.join(", ")}</p>}
-                      {action.damage && <p><strong>Dano:</strong> {action.damage}</p>}
+                      {action.damage && <p><strong>Quantidade de dano causado:</strong> {action.damage}</p>}
                     </article>
                   );
                 })}
