@@ -234,7 +234,11 @@ function CombatManager({ campaignId, characters, sections, session }) {
             <h3>{combat.name}</h3>
             <p className="description">Rodada {combat.currentRound} · {combat.combatants.length} participantes</p>
             <div className="button-row">
-              <Link className="primary-button" to={`/combats/${combat.id}`}>Abrir combate</Link>
+              <Link className="primary-button" to={`/combats/${combat.id}#grid`}>Abrir grid</Link>
+              <Link className="secondary-button" to={`/combats/${combat.id}#participants`}>
+                + Adicionar personagem
+              </Link>
+              <Link className="secondary-button" to={`/combats/${combat.id}#combat`}>Iniciativa e ações</Link>
               <button className="danger-button" onClick={() => deleteCombat(combat)} type="button">Excluir</button>
             </div>
           </article>

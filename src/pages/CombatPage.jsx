@@ -25,6 +25,7 @@ function CombatPage({ session, onLogout }) {
   const [actionType, setActionType] = useState("FREE");
   const [actionPosition, setActionPosition] = useState("");
   const [isEditingGrid, setIsEditingGrid] = useState(false);
+  const [gmTab, setGmTab] = useState("grid");
   const orderedCombatants = useMemo(
     () => [...(combat?.combatants ?? [])].sort((a, b) => b.initiative - a.initiative),
     [combat?.combatants],
@@ -77,6 +78,26 @@ function CombatPage({ session, onLogout }) {
   useEffect(() => {
     loadCombat();
   }, [combatId, session.token]);
+
+  useEffect(() => {
+    if (!isGM) {
+      return;
+    }
+    if (window.location.hash === "#participants") {
+      setGmTab("grid");
+      setShowParticipantForm(true);
+    } else if (window.location.hash === "#combat") {
+      setGmTab("combat");
+    } else if (window.location.hash === "#grid") {
+      setGmTab("grid");
+    }
+  }, [combatId, isGM]);
+
+  useEffect(() => {
+    if (!isLoading && ["#grid", "#participants", "#combat"].includes(window.location.hash)) {
+      document.getElementById(window.location.hash.slice(1))?.scrollIntoView();
+    }
+  }, [isLoading, gmTab, showParticipantForm]);
 
   useEffect(() => {
     setActionPosition(currentCombatant?.position ?? "");
@@ -235,7 +256,35 @@ function CombatPage({ session, onLogout }) {
             </section>
 
             {isGM && (
-              <section className="manager-section">
+              <nav className="page-tabs" aria-label="Abas do combate" role="tablist">
+                <button
+                  aria-selected={gmTab === "grid"}
+                  className={`page-tab${gmTab === "grid" ? " page-tab--active" : ""}`}
+                  onClick={() => setGmTab("grid")}
+                  role="tab"
+                  type="button"
+                >
+                  Grid e participantes
+                </button>
+                <button
+                  aria-selected={gmTab === "combat"}
+                  className={`page-tab${gmTab === "combat" ? " page-tab--active" : ""}`}
+                  onClick={() => setGmTab("combat")}
+                  role="tab"
+                  type="button"
+                >
+                  Iniciativa e ações
+                </button>
+              </nav>
+            )}
+
+            {isGM && gmTab === "grid" && (
+              <section className="manager-section" id="grid">
+                <CombatGrid
+                  combatants={combat.combatants}
+                  columns={combat.gridColumns}
+                  rows={combat.gridRows}
+                />
                 {!isEditingGrid ? (
                   <div className="button-row">
                     <button
@@ -266,12 +315,22 @@ function CombatPage({ session, onLogout }) {
                     </button>
                   </form>
                 )}
-                {!showParticipantForm ? (
-                  <button className="secondary-button" onClick={() => setShowParticipantForm(true)} type="button">
-                    Adicionar personagem ou NPC
-                  </button>
-                ) : (
-                  <form className="surface-card form-card form-grid" onSubmit={addParticipant}>
+                <section className="manager-section" id="participants">
+                  <div className="manager-heading">
+                    <div>
+                      <h2>Participantes do combate</h2>
+                      <p className="description">
+                        Adicione personagens que ainda não estão neste combate ou inclua NPCs.
+                      </p>
+                    </div>
+                    {!showParticipantForm && (
+                      <button className="primary-button" onClick={() => setShowParticipantForm(true)} type="button">
+                        + Adicionar personagem ou NPC
+                      </button>
+                    )}
+                  </div>
+                  {showParticipantForm && (
+                    <form className="surface-card form-card form-grid" onSubmit={addParticipant}>
                     <h2 className="form-grid__full">Adicionar participante</h2>
                     <label>
                       Tipo
@@ -395,12 +454,14 @@ function CombatPage({ session, onLogout }) {
                         Cancelar
                       </button>
                     </div>
-                  </form>
-                )}
+                    </form>
+                  )}
+                </section>
               </section>
             )}
 
-            <section className="combat-layout">
+            {(!isGM || gmTab === "combat") && (
+              <section className="combat-layout" id="combat">
               <article className="surface-card combat-panel">
                 <h2>Iniciativa</h2>
                 <ol className="initiative-list">
@@ -428,12 +489,14 @@ function CombatPage({ session, onLogout }) {
                 </ol>
               </article>
 
-              <CombatGrid
-                asPlayer={!isGM}
-                combatants={combat.combatants}
-                columns={combat.gridColumns}
-                rows={combat.gridRows}
-              />
+              {!isGM && (
+                <CombatGrid
+                  asPlayer
+                  combatants={combat.combatants}
+                  columns={combat.gridColumns}
+                  rows={combat.gridRows}
+                />
+              )}
 
               {currentCombatant && canSeeAction && (
                 <form className="surface-card form-card form-grid combat-panel" onSubmit={submitAction}>
@@ -525,9 +588,11 @@ function CombatPage({ session, onLogout }) {
                   </fieldset>
                 </form>
               )}
-            </section>
+              </section>
+            )}
 
-            <section className="manager-section">
+            {(!isGM || gmTab === "combat") && (
+              <section className="manager-section">
               <h2>Histórico de ações</h2>
               <div className="action-history">
                 {[...combat.actions].reverse().map((action) => {
@@ -552,7 +617,8 @@ function CombatPage({ session, onLogout }) {
                 })}
                 {!combat.actions.length && <p className="description">Nenhuma ação registrada ainda.</p>}
               </div>
-            </section>
+              </section>
+            )}
           </>
         ) : null}
       </main>
