@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import CampaignSettings from "../components/CampaignSettings.jsx";
 import CharacterManager from "../components/CharacterManager.jsx";
+import CombatManager from "../components/CombatManager.jsx";
 import Header from "../components/Header.jsx";
 import MemberManager from "../components/MemberManager.jsx";
 import StructureManager from "../components/StructureManager.jsx";
@@ -12,6 +13,7 @@ const TABS = [
   { id: "members", label: "Jogadores" },
   { id: "characters", label: "Personagens" },
   { id: "structure", label: "Seções e campos" },
+  { id: "combats", label: "Combates" },
 ];
 
 function CampaignPage({ session, onLogout }) {
@@ -128,6 +130,14 @@ function CampaignPage({ session, onLogout }) {
               <StructureManager
                 campaignId={campaignId}
                 onRefresh={loadCampaign}
+                sections={sections}
+                session={session}
+              />
+            )}
+            {activeTab === "combats" && (
+              <CombatManager
+                campaignId={campaignId}
+                characters={characters}
                 sections={sections}
                 session={session}
               />

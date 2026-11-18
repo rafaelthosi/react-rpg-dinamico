@@ -16,6 +16,9 @@ export async function apiRequest(path, { session, method = "GET", body } = {}) {
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
+  if (response.status === 401 && session?.token) {
+    window.dispatchEvent(new Event("controlrpg:session-expired"));
+  }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(payload.error ?? `A solicitação falhou (${response.status}).`);

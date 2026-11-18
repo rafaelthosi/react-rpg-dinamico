@@ -5,6 +5,7 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     setValue(initialValue);
@@ -19,6 +20,7 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
       const savedValue = await onSave(value);
       setValue(savedValue);
       setSaved(true);
+      setIsEditing(false);
     } catch (saveError) {
       setError(saveError.message);
     } finally {
@@ -45,6 +47,7 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
   if (field.type === "SELECT") {
     control = (
       <select
+        disabled={!isEditing || isSaving}
         onChange={(event) => setValue(event.target.value)}
         required={field.required}
         value={value}
@@ -58,6 +61,7 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
   } else if (field.type === "TEXTAREA") {
     control = (
       <textarea
+        disabled={!isEditing || isSaving}
         onChange={(event) => setValue(event.target.value)}
         required={field.required}
         rows={3}
@@ -68,6 +72,7 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
     control = (
       <input
         checked={value === "true"}
+        disabled={!isEditing || isSaving}
         onChange={(event) => setValue(String(event.target.checked))}
         type="checkbox"
       />
@@ -75,6 +80,7 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
   } else if (field.type === "BOOLEAN") {
     control = (
       <select
+        disabled={!isEditing || isSaving}
         onChange={(event) => setValue(event.target.value)}
         required={field.required}
         value={value}
@@ -88,6 +94,7 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
     const type = field.type === "NUMBER" ? "number" : field.type === "DATE" ? "date" : "text";
     control = (
       <input
+        disabled={!isEditing || isSaving}
         onChange={(event) => setValue(event.target.value)}
         required={field.required}
         type={type}
@@ -103,9 +110,37 @@ function FieldValueEditor({ field, initialValue = "", canEdit, onSave }) {
         {control}
       </label>
       <div className="field-control__actions">
-        <button className="secondary-button secondary-button--small" disabled={isSaving} type="submit">
-          {isSaving ? "Salvando..." : "Salvar"}
-        </button>
+        {isEditing ? (
+          <>
+            <button className="primary-button" disabled={isSaving} type="submit">
+              {isSaving ? "Salvando..." : "Salvar"}
+            </button>
+            <button
+              className="secondary-button secondary-button--small"
+              disabled={isSaving}
+              onClick={() => {
+                setValue(initialValue);
+                setIsEditing(false);
+                setError("");
+                setSaved(false);
+              }}
+              type="button"
+            >
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <button
+            className="secondary-button secondary-button--small"
+            onClick={() => {
+              setIsEditing(true);
+              setSaved(false);
+            }}
+            type="button"
+          >
+            Editar
+          </button>
+        )}
         {saved && <span className="feedback--success">Salvo</span>}
       </div>
       {error && <p className="feedback feedback--error" role="alert">{error}</p>}

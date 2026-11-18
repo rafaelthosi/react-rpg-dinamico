@@ -25,7 +25,7 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
         body: {
           name: data.get("name"),
           description: data.get("description"),
-          position: sections.length,
+          position: Number(data.get("position")),
         },
       });
       form.reset();
@@ -38,11 +38,25 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
       return;
     }
     const description = window.prompt("Descrição da seção", section.description ?? "");
-    if (description === null || (name.trim() === section.name && description === (section.description ?? ""))) {
+    if (description === null) {
+      return;
+    }
+    const positionInput = window.prompt("Ordem da seção (começa em 0)", String(section.position));
+    if (positionInput === null) {
+      return;
+    }
+    const position = Number(positionInput);
+    if (
+      !Number.isInteger(position)
+      || position < 0
+      || (name.trim() === section.name
+        && description === (section.description ?? "")
+        && position === section.position)
+    ) {
       return;
     }
     await run(() => apiRequest(`/sections/${section.id}`, {
-      session, method: "PATCH", body: { name, description },
+      session, method: "PATCH", body: { name, description, position },
     }));
   }
 
@@ -62,13 +76,13 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
         session,
         method: "POST",
         body: {
-          name: data.get("name"),
           label: data.get("label"),
           type: data.get("type"),
           required: data.get("required") === "on",
           editableBy: data.get("editableBy"),
           visibleTo: data.get("visibleTo"),
-          position: section.fields.length,
+          shareWithNpcs: data.get("shareWithNpcs") === "on",
+          position: Number(data.get("position")),
         },
       });
       form.reset();
@@ -84,12 +98,13 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
         session,
         method: "PATCH",
         body: {
-          name: data.get("name"),
           label: data.get("label"),
           type: data.get("type"),
           required: data.get("required") === "on",
           editableBy: data.get("editableBy"),
           visibleTo: data.get("visibleTo"),
+          position: Number(data.get("position")),
+          shareWithNpcs: data.get("shareWithNpcs") === "on",
         },
       });
       form.closest("details").open = false;
@@ -159,6 +174,10 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
           Descrição
           <input maxLength={10000} name="description" />
         </label>
+        <label>
+          Ordem
+          <input defaultValue={sections.length} min={0} name="position" type="number" required />
+        </label>
         <button className="primary-button form-grid__full" type="submit">Adicionar seção</button>
       </form>
 
@@ -189,16 +208,12 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
                   <div className="field-definition__header">
                     <div>
                       <strong>{field.label}</strong>
-                      <span className="muted-text">{field.name} · {field.type} · edição: {field.editableBy}</span>
+                      <span className="muted-text">{field.type} · edição: {field.editableBy} · ordem: {field.position}</span>
                     </div>
                     <div className="button-row">
                       <details className="field-edit">
                         <summary>Configurar</summary>
                         <form className="form-grid form-grid--two" onSubmit={(event) => updateField(event, field)}>
-                          <label>
-                            Identificador
-                            <input defaultValue={field.name} maxLength={255} name="name" required />
-                          </label>
                           <label>
                             Rótulo
                             <input defaultValue={field.label} maxLength={255} name="label" required />
@@ -231,6 +246,14 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
                             <input defaultChecked={field.required} name="required" type="checkbox" />
                             Obrigatório
                           </label>
+                          <label>
+                            Ordem
+                            <input defaultValue={field.position} min={0} name="position" type="number" required />
+                          </label>
+                          <label className="checkbox-label">
+                            <input defaultChecked={field.shareWithNpcs} name="shareWithNpcs" type="checkbox" />
+                            Compartilhar com NPCs/criaturas
+                          </label>
                           <button className="primary-button form-grid__full" type="submit">Salvar configuração</button>
                         </form>
                       </details>
@@ -261,6 +284,10 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
                           <input maxLength={255} name="label" required />
                         </label>
                         <label>
+                          Ordem
+                          <input defaultValue={section.fields.length} min={0} name="position" type="number" required />
+                        </label>
+                        <label>
                           Valor armazenado
                           <input maxLength={255} name="value" required />
                         </label>
@@ -275,10 +302,6 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
             <details className="create-field">
               <summary>Adicionar campo</summary>
               <form className="form-grid form-grid--two" onSubmit={(event) => createField(event, section)}>
-                <label>
-                  Identificador
-                  <input maxLength={255} name="name" required />
-                </label>
                 <label>
                   Rótulo
                   <input maxLength={255} name="label" required />
@@ -310,6 +333,10 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
                 <label className="checkbox-label">
                   <input name="required" type="checkbox" />
                   Obrigatório
+                </label>
+                <label className="checkbox-label">
+                  <input name="shareWithNpcs" type="checkbox" />
+                  Compartilhar com NPCs/criaturas
                 </label>
                 <button className="primary-button form-grid__full" type="submit">Criar campo</button>
               </form>

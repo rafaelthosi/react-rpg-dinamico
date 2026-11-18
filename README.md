@@ -74,13 +74,17 @@ Os arquivos gerados ficam em `dist/`. Consulte
 
 ## Páginas
 
-- `/login`: autenticação por perfil. O Jogador escolhe uma campanha vinculada
-  e confirma a senha de acesso antes de abrir a ficha.
-- `/home`: lista de campanhas do GM ou personagens do Jogador, de acordo com o
-  perfil autenticado.
-- `/campaigns/:campaignId`: administração da campanha pelo GM, incluindo
-  informações da campanha, jogadores, personagens e estrutura da ficha.
-- `/`: encaminha para `/login`.
+- `/#/login`: autenticação; a sessão é mantida no navegador e removida quando
+  a API informa que o token expirou ou é inválido.
+- `/#/home`: campanhas do GM ou cards de personagens do Jogador.
+- `/#/campaigns/:campaignId`: administração da campanha, incluindo estrutura,
+  ordenação de seções/campos e gerenciamento de combates.
+- `/#/characters/:characterId`: ficha detalhada e ataques do personagem.
+- `/#/combats`: combates dos personagens do Jogador.
+- `/#/combats/:combatId`: iniciativa e histórico de ações do combate.
+
+O roteador usa fragmentos (`#`) para que o recarregamento de qualquer rota
+funcione em hospedagens estáticas sem uma regra de fallback de SPA.
 
 ## Organização
 
@@ -91,7 +95,7 @@ src/
 ├── services/         # Autenticação e chamadas à API
 ├── styles/
 │   └── global.css
-├── App.jsx           # Rotas e sessão em memória
+├── App.jsx           # Rotas e persistência da sessão
 └── main.jsx          # Inicializa o React e o roteador
 index.html            # Página HTML carregada pelo navegador
 vite.config.js        # Configuração do Vite

@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import Header from "../components/Header.jsx";
-import CharacterSheet from "../components/CharacterSheet.jsx";
-import { apiRequest, getCampaignStructure } from "../services/rpgApi.js";
+import { Link } from "react-router-dom";
+import { apiRequest } from "../services/rpgApi.js";
 
 function PlayerPage({ session, onLogout }) {
   const [campaign, setCampaign] = useState(null);
-  const [sections, setSections] = useState([]);
   const [characters, setCharacters] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,13 +20,11 @@ function PlayerPage({ session, onLogout }) {
 
     setError("");
     try {
-      const [campaignResult, structureResult, characterResult] = await Promise.all([
+      const [campaignResult, characterResult] = await Promise.all([
         apiRequest(`/campaigns/${session.campaignId}`, { session }),
-        getCampaignStructure(session, session.campaignId),
         apiRequest(`/campaigns/${session.campaignId}/characters`, { session }),
       ]);
       setCampaign(campaignResult);
-      setSections(structureResult);
       setCharacters(characterResult);
     } catch (loadError) {
       setError(loadError.message);
@@ -57,35 +54,6 @@ function PlayerPage({ session, onLogout }) {
       setError(createError.message);
     } finally {
       setIsSaving(false);
-    }
-  }
-
-  async function renameCharacter(character) {
-    const name = window.prompt("Novo nome do personagem", character.name);
-    if (!name || name.trim() === character.name) {
-      return;
-    }
-    try {
-      const updated = await apiRequest(`/characters/${character.id}`, {
-        session,
-        method: "PATCH",
-        body: { name },
-      });
-      setCharacters((current) => current.map((item) => item.id === updated.id ? updated : item));
-    } catch (updateError) {
-      setError(updateError.message);
-    }
-  }
-
-  async function deleteCharacter(character) {
-    if (!window.confirm(`Remover o personagem "${character.name}" e seus valores?`)) {
-      return;
-    }
-    try {
-      await apiRequest(`/characters/${character.id}`, { session, method: "DELETE" });
-      setCharacters((current) => current.filter((item) => item.id !== character.id));
-    } catch (deleteError) {
-      setError(deleteError.message);
     }
   }
 
@@ -134,29 +102,15 @@ function PlayerPage({ session, onLogout }) {
                     <p className="eyebrow">Personagem</p>
                     <h2>{character.name}</h2>
                   </div>
-                  <div className="button-row">
-                    <button
-                      className="secondary-button secondary-button--small"
-                      onClick={() => renameCharacter(character)}
-                      type="button"
-                    >
-                      Renomear
-                    </button>
-                    <button
-                      className="danger-button"
-                      onClick={() => deleteCharacter(character)}
-                      type="button"
-                    >
-                      Remover
-                    </button>
-                  </div>
                 </header>
-                <CharacterSheet
-                  actorRole="PLAYER"
-                  character={character}
-                  sections={sections}
-                  session={session}
-                />
+                <div className="button-row character-card__actions">
+                  <Link className="primary-button" to={`/characters/${character.id}`}>
+                    Ver mais detalhes
+                  </Link>
+                  <Link className="secondary-button" to="/combats">
+                    Combates
+                  </Link>
+                </div>
               </article>
             ))}
           </div>
