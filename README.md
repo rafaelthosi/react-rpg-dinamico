@@ -79,7 +79,8 @@ Os arquivos gerados ficam em `dist/`. Consulte
 - `/#/home`: campanhas do GM ou cards de personagens do Jogador.
 - `/#/campaigns/:campaignId`: administração da campanha, incluindo estrutura,
   ordenação de seções/campos e gerenciamento de combates.
-- `/#/characters/:characterId`: ficha detalhada e ataques do personagem.
+- `/#/characters/:characterId`: detalhes da ficha do personagem.
+- `/#/characters/:characterId/attacks`: gerenciamento de ataques do personagem.
 - `/#/combats`: combates dos personagens do Jogador.
 - `/#/combats/:combatId`: iniciativa e histórico de ações do combate.
 

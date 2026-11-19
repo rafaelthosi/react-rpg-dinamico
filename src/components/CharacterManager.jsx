@@ -1,5 +1,6 @@
 import { useState } from "react";
 import CharacterSheet from "./CharacterSheet.jsx";
+import AttackManager from "./AttackManager.jsx";
 import { apiRequest } from "../services/rpgApi.js";
 
 function CharacterManager({ campaignId, characters, members, sections, session, onRefresh }) {
@@ -121,6 +122,10 @@ function CharacterManager({ campaignId, characters, members, sections, session, 
                 sections={sections}
                 session={session}
               />
+              <details className="attack-manager-disclosure">
+                <summary>Gerenciar ataques</summary>
+                <AttackManager characterId={character.id} session={session} />
+              </details>
             </article>
           );
         })}

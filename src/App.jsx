@@ -63,6 +63,14 @@ function App() {
         }
       />
       <Route
+        path="/characters/:characterId/attacks"
+        element={
+          isAuthenticated && String(session.user.role).toLowerCase() === "player"
+            ? <PlayerCharacterPage session={session} onLogout={logout} />
+            : <Navigate to={isAuthenticated ? "/home" : "/login"} replace />
+        }
+      />
+      <Route
         path="/characters/:characterId"
         element={
           isAuthenticated && String(session.user.role).toLowerCase() === "player"

@@ -133,7 +133,9 @@ function CombatManager({ campaignId, characters, sections, session }) {
                   >
                     <option value="">Selecione</option>
                     {characters
-                      .filter((character) => !participants.some((item) => item.characterId === character.id))
+                      .filter((character) => !participants.some(
+                        (item, itemIndex) => itemIndex !== index && item.characterId === character.id,
+                      ))
                       .map((character) => (
                       <option key={character.id} value={character.id}>{character.name}</option>
                       ))}

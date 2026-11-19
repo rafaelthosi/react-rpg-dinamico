@@ -950,6 +950,26 @@ textarea:disabled {
   color: var(--color-primary);
 }
 
+.page-tab {
+  text-decoration: none;
+}
+
+.attack-manager-disclosure {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.attack-manager-disclosure > summary {
+  color: var(--color-primary);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.attack-manager-disclosure[open] > summary {
+  margin-bottom: 20px;
+}
+
 .manager-section {
   display: grid;
   gap: 22px;
