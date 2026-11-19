@@ -3,7 +3,8 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import CampaignPage from "./pages/CampaignPage.jsx";
-import PlayerCharacterPage from "./pages/PlayerCharacterPage.jsx";
+import PlayerCharacterAttacksPage from "./pages/PlayerCharacterAttacksPage.jsx";
+import PlayerCharacterDetailsPage from "./pages/PlayerCharacterDetailsPage.jsx";
 import PlayerCombatsPage from "./pages/PlayerCombatsPage.jsx";
 import CombatPage from "./pages/CombatPage.jsx";
 
@@ -66,7 +67,7 @@ function App() {
         path="/characters/:characterId/attacks"
         element={
           isAuthenticated && String(session.user.role).toLowerCase() === "player"
-            ? <PlayerCharacterPage session={session} onLogout={logout} />
+            ? <PlayerCharacterAttacksPage session={session} onLogout={logout} />
             : <Navigate to={isAuthenticated ? "/home" : "/login"} replace />
         }
       />
@@ -74,7 +75,7 @@ function App() {
         path="/characters/:characterId"
         element={
           isAuthenticated && String(session.user.role).toLowerCase() === "player"
-            ? <PlayerCharacterPage session={session} onLogout={logout} />
+            ? <PlayerCharacterDetailsPage session={session} onLogout={logout} />
             : <Navigate to={isAuthenticated ? "/home" : "/login"} replace />
         }
       />

@@ -231,7 +231,9 @@ function CombatPage({ session, onLogout }) {
     <>
       <Header onLogout={onLogout} />
       <main className="app-content">
-        <Link className="back-link" to={returnPath}>← Voltar</Link>
+        <Link className="back-link" to={returnPath}>
+          ← {isGM ? "Campanha" : "Combates"}
+        </Link>
         {error && <p className="feedback feedback--error" role="alert">{error}</p>}
         {isLoading ? (
           <p className="description">Carregando combate...</p>

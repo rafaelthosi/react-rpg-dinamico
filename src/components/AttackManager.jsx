@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { apiRequest } from "../services/rpgApi.js";
 
-function AttackManager({ characterId, session }) {
+function AttackManager({ characterId, session, showHeading = true }) {
   const [attacks, setAttacks] = useState([]);
   const [editingAttack, setEditingAttack] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -83,13 +83,18 @@ function AttackManager({ characterId, session }) {
   }
 
   return (
-    <section className="manager-section attacks-section">
-      <div className="manager-heading">
-        <div>
-          <h2>Ataques</h2>
-          <p className="description">Ataques disponíveis para este personagem.</p>
+    <section
+      aria-label={showHeading ? undefined : "Gerenciar ataques"}
+      className="manager-section attacks-section"
+    >
+      {showHeading && (
+        <div className="manager-heading">
+          <div>
+            <h2>Ataques</h2>
+            <p className="description">Ataques disponíveis para este personagem.</p>
+          </div>
         </div>
-      </div>
+      )}
       {error && <p className="feedback feedback--error" role="alert">{error}</p>}
       {isLoading ? (
         <p className="description">Carregando ataques...</p>
