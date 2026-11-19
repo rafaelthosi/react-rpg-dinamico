@@ -65,8 +65,24 @@ function getFieldValues(form, fields) {
 function NpcManager({ campaignId, npcs, sections, session, onRefresh }) {
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const sharedFields = sections.flatMap((section) => section.fields)
-    .filter((field) => field.shareWithNpcs);
+  const npcSections = sections.map((section) => ({
+    ...section,
+    fields: section.fields.filter((field) => field.shareWithNpcs),
+  })).filter((section) => section.fields.length > 0);
+  const sharedFields = npcSections.flatMap((section) => section.fields);
+
+  function renderNpcSections(values = {}) {
+    return npcSections.map((section) => (
+      <section className="npc-field-section form-grid__full" key={section.id}>
+        <h4>{section.name}</h4>
+        <div className="form-grid form-grid--two npc-field-section__fields">
+          {section.fields.map((field) => (
+            <NpcFieldInput field={field} key={field.id} value={values[field.id] ?? ""} />
+          ))}
+        </div>
+      </section>
+    ));
+  }
 
   async function saveNpc(event, npc = null) {
     event.preventDefault();
@@ -127,7 +143,7 @@ function NpcManager({ campaignId, npcs, sections, session, onRefresh }) {
           <input defaultChecked name="isEnemy" type="checkbox" />
           Inimigo
         </label>
-        {sharedFields.map((field) => <NpcFieldInput field={field} key={field.id} />)}
+        {renderNpcSections()}
         <button className="primary-button form-grid__full" disabled={isSaving} type="submit">
           {isSaving ? "Criando..." : "Criar NPC"}
         </button>
@@ -157,9 +173,7 @@ function NpcManager({ campaignId, npcs, sections, session, onRefresh }) {
                   <input defaultChecked={npc.isEnemy} name="isEnemy" type="checkbox" />
                   Inimigo
                 </label>
-                {sharedFields.map((field) => (
-                  <NpcFieldInput field={field} key={field.id} value={values[field.id] ?? ""} />
-                ))}
+                {renderNpcSections(values)}
                 <button className="secondary-button form-grid__full" disabled={isSaving} type="submit">
                   Salvar alterações
                 </button>

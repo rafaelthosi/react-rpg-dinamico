@@ -549,6 +549,19 @@ textarea:focus-visible {
   grid-column: 1 / -1;
 }
 
+.npc-field-section {
+  padding-top: 16px;
+  border-top: 1px solid rgb(200 185 159 / 65%);
+}
+
+.npc-field-section h4 {
+  margin: 0 0 12px;
+}
+
+.npc-field-section__fields {
+  gap: 16px;
+}
+
 .checkbox-label {
   display: flex;
   align-items: center;
