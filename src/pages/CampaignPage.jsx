@@ -5,6 +5,7 @@ import CharacterManager from "../components/CharacterManager.jsx";
 import CombatManager from "../components/CombatManager.jsx";
 import Header from "../components/Header.jsx";
 import MemberManager from "../components/MemberManager.jsx";
+import NpcManager from "../components/NpcManager.jsx";
 import StructureManager from "../components/StructureManager.jsx";
 import { apiRequest, getCampaignStructure } from "../services/rpgApi.js";
 
@@ -12,6 +13,7 @@ const TABS = [
   { id: "overview", label: "Campanha" },
   { id: "members", label: "Jogadores" },
   { id: "characters", label: "Personagens" },
+  { id: "npcs", label: "NPCs" },
   { id: "structure", label: "Seções e campos" },
   { id: "combats", label: "Combates" },
 ];
@@ -22,6 +24,7 @@ function CampaignPage({ session, onLogout }) {
   const [campaign, setCampaign] = useState(null);
   const [members, setMembers] = useState([]);
   const [characters, setCharacters] = useState([]);
+  const [npcs, setNpcs] = useState([]);
   const [sections, setSections] = useState([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(true);
@@ -30,15 +33,17 @@ function CampaignPage({ session, onLogout }) {
   async function loadCampaign() {
     setError("");
     try {
-      const [campaignResult, membersResult, charactersResult, sectionsResult] = await Promise.all([
+      const [campaignResult, membersResult, charactersResult, npcsResult, sectionsResult] = await Promise.all([
         apiRequest(`/campaigns/${campaignId}`, { session }),
         apiRequest(`/campaigns/${campaignId}/members`, { session }),
         apiRequest(`/campaigns/${campaignId}/characters`, { session }),
+        apiRequest(`/campaigns/${campaignId}/npcs`, { session }),
         getCampaignStructure(session, campaignId),
       ]);
       setCampaign(campaignResult);
       setMembers(membersResult);
       setCharacters(charactersResult);
+      setNpcs(npcsResult);
       setSections(sectionsResult);
     } catch (loadError) {
       setError(loadError.message);
@@ -126,6 +131,15 @@ function CampaignPage({ session, onLogout }) {
                 session={session}
               />
             )}
+            {activeTab === "npcs" && (
+              <NpcManager
+                campaignId={campaignId}
+                npcs={npcs}
+                onRefresh={loadCampaign}
+                sections={sections}
+                session={session}
+              />
+            )}
             {activeTab === "structure" && (
               <StructureManager
                 campaignId={campaignId}
@@ -138,7 +152,7 @@ function CampaignPage({ session, onLogout }) {
               <CombatManager
                 campaignId={campaignId}
                 characters={characters}
-                sections={sections}
+                npcs={npcs}
                 session={session}
               />
             )}

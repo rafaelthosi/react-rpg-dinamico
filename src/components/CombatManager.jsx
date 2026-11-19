@@ -2,15 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiRequest } from "../services/rpgApi.js";
 
-function CombatManager({ campaignId, characters, sections, session }) {
+function CombatManager({ campaignId, characters, npcs, session }) {
   const [combats, setCombats] = useState([]);
   const [participants, setParticipants] = useState([]);
   const [gridRows, setGridRows] = useState(10);
   const [gridColumns, setGridColumns] = useState(10);
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const sharedFields = sections.flatMap((section) => section.fields)
-    .filter((field) => field.shareWithNpcs);
 
   async function loadCombats() {
     try {
@@ -33,11 +31,7 @@ function CombatManager({ campaignId, characters, sections, session }) {
 
   function addNpc() {
     setParticipants((current) => [...current, {
-      kind: "npc", name: "", isEnemy: true, initiative: 0, actionsPerTurn: 1, position: "",
-      fieldValues: Object.fromEntries(sharedFields.map((field) => [
-        field.id,
-        field.type === "CHECKBOX" ? "false" : "",
-      ])),
+      kind: "npc", npcId: "", initiative: 0, actionsPerTurn: 1, position: "",
     }]);
   }
 
@@ -50,7 +44,8 @@ function CombatManager({ campaignId, characters, sections, session }) {
   async function createCombat(event) {
     event.preventDefault();
     const form = event.currentTarget;
-    const name = new FormData(form).get("combatName");
+    const data = new FormData(form);
+    const name = data.get("combatName");
     setIsSaving(true);
     setError("");
     try {
@@ -61,21 +56,23 @@ function CombatManager({ campaignId, characters, sections, session }) {
           name,
           gridRows: Number(gridRows),
           gridColumns: Number(gridColumns),
-          participants: participants.map((participant) => ({
-            ...(participant.kind === "character"
-              ? { characterId: participant.characterId }
-              : {
-                name: participant.name,
-                isEnemy: participant.isEnemy,
-                fieldValues: sharedFields.map((field) => ({
-                  fieldId: field.id,
-                  value: participant.fieldValues[field.id] ?? "",
-                })),
-              }),
-            initiative: Number(participant.initiative),
-            actionsPerTurn: Number(participant.actionsPerTurn),
-            position: participant.position,
-          })),
+          participants: participants.map((participant) => {
+            const npc = participant.kind === "npc"
+              ? npcs.find((item) => item.id === participant.npcId)
+              : null;
+            return {
+              ...(participant.kind === "character"
+                ? { characterId: participant.characterId }
+                : {
+                  name: npc.name,
+                  isEnemy: npc.isEnemy,
+                  fieldValues: npc.fieldValues.map(({ fieldId, value }) => ({ fieldId, value })),
+                }),
+              initiative: Number(participant.initiative),
+              actionsPerTurn: Number(participant.actionsPerTurn),
+              position: participant.position,
+            };
+          }),
         },
       });
       form.reset();
@@ -107,7 +104,7 @@ function CombatManager({ campaignId, characters, sections, session }) {
       <div className="manager-heading">
         <div>
           <h2>Combates</h2>
-          <p className="description">Monte a iniciativa com personagens vinculados e NPCs ou criaturas.</p>
+          <p className="description">Monte a iniciativa selecionando personagens e NPCs já cadastrados.</p>
         </div>
       </div>
 
@@ -118,7 +115,7 @@ function CombatManager({ campaignId, characters, sections, session }) {
         <label>Tamanho do grid (colunas)<input max={100} min={1} onChange={(event) => setGridColumns(event.target.value)} required type="number" value={gridColumns} /></label>
         <div className="button-row">
           <button className="secondary-button" onClick={addPlayer} type="button">Adicionar personagem</button>
-          <button className="secondary-button" onClick={addNpc} type="button">Adicionar NPC/criatura</button>
+          <button className="secondary-button" disabled={!npcs.length} onClick={addNpc} type="button">Adicionar NPC</button>
         </div>
         <div className="combatant-editor-list">
           {participants.map((participant, index) => (
@@ -142,61 +139,25 @@ function CombatManager({ campaignId, characters, sections, session }) {
                   </select>
                 </label>
               ) : (
-                <>
-                  <label>NPC/criatura<input maxLength={255} onChange={(event) => updateParticipant(index, "name", event.target.value)} required value={participant.name} /></label>
-                  <label className="checkbox-label">
-                    <input checked={participant.isEnemy} onChange={(event) => updateParticipant(index, "isEnemy", event.target.checked)} type="checkbox" />
-                    Inimigo
-                  </label>
-                  {sharedFields.map((field) => {
-                    const value = participant.fieldValues[field.id] ?? "";
-                    const setValue = (nextValue) => updateParticipant(index, "fieldValues", {
-                      ...participant.fieldValues,
-                      [field.id]: nextValue,
-                    });
-                    if (field.type === "SELECT" || field.type === "BOOLEAN") {
-                      return (
-                        <label key={field.id}>
-                          {field.label}{field.required ? " *" : ""}
-                          <select onChange={(event) => setValue(event.target.value)} required={field.required} value={value}>
-                            <option value="">Selecione</option>
-                            {field.type === "SELECT" ? field.options.map((option) => (
-                              <option key={option.id} value={option.value}>{option.label}</option>
-                            )) : (
-                              <>
-                                <option value="true">Sim</option>
-                                <option value="false">Não</option>
-                              </>
-                            )}
-                          </select>
-                        </label>
-                      );
-                    }
-                    if (field.type === "CHECKBOX") {
-                      return (
-                        <label className="checkbox-label" key={field.id}>
-                          <input checked={value === "true"} onChange={(event) => setValue(String(event.target.checked))} type="checkbox" />
-                          {field.label}
-                        </label>
-                      );
-                    }
-                    if (field.type === "TEXTAREA") {
-                      return (
-                        <label key={field.id}>
-                          {field.label}{field.required ? " *" : ""}
-                          <textarea maxLength={10000} onChange={(event) => setValue(event.target.value)} required={field.required} value={value} />
-                        </label>
-                      );
-                    }
-                    const type = field.type === "NUMBER" || field.type === "DATE" ? field.type.toLowerCase() : "text";
-                    return (
-                      <label key={field.id}>
-                        {field.label}{field.required ? " *" : ""}
-                        <input maxLength={type === "text" ? 10000 : undefined} onChange={(event) => setValue(event.target.value)} required={field.required} type={type} value={value} />
-                      </label>
-                    );
-                  })}
-                </>
+                <label>
+                  NPC
+                  <select
+                    onChange={(event) => updateParticipant(index, "npcId", event.target.value)}
+                    required
+                    value={participant.npcId}
+                  >
+                    <option value="">Selecione</option>
+                    {npcs
+                      .filter((npc) => !participants.some(
+                        (item, itemIndex) => itemIndex !== index && item.npcId === npc.id,
+                      ))
+                      .map((npc) => (
+                        <option key={npc.id} value={npc.id}>
+                          {npc.name} · {npc.isEnemy ? "Inimigo" : "Aliado"}
+                        </option>
+                      ))}
+                  </select>
+                </label>
               )}
               <label>
                 Posição no grid (ex.: b12)
@@ -221,6 +182,9 @@ function CombatManager({ campaignId, characters, sections, session }) {
               </button>
             </div>
           ))}
+          {!npcs.length && (
+            <p className="description">Cadastre NPCs na aba “NPCs” antes de adicioná-los a um combate.</p>
+          )}
           {!participants.length && <p className="description">Adicione ao menos um participante.</p>}
         </div>
         <button className="primary-button" disabled={isSaving || !participants.length} type="submit">

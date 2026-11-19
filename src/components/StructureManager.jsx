@@ -32,32 +32,22 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
     });
   }
 
-  async function editSection(section) {
-    const name = window.prompt("Nome da seção", section.name);
-    if (name === null) {
-      return;
-    }
-    const description = window.prompt("Descrição da seção", section.description ?? "");
-    if (description === null) {
-      return;
-    }
-    const positionInput = window.prompt("Ordem da seção (começa em 0)", String(section.position));
-    if (positionInput === null) {
-      return;
-    }
-    const position = Number(positionInput);
-    if (
-      !Number.isInteger(position)
-      || position < 0
-      || (name.trim() === section.name
-        && description === (section.description ?? "")
-        && position === section.position)
-    ) {
-      return;
-    }
-    await run(() => apiRequest(`/sections/${section.id}`, {
-      session, method: "PATCH", body: { name, description, position },
-    }));
+  async function editSection(event, section) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    await run(async () => {
+      await apiRequest(`/sections/${section.id}`, {
+        session,
+        method: "PATCH",
+        body: {
+          name: data.get("name"),
+          description: data.get("description"),
+          position: Number(data.get("position")),
+        },
+      });
+      form.closest("details").open = false;
+    });
   }
 
   async function deleteSection(section) {
@@ -193,9 +183,37 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
                 {section.description && <p className="description">{section.description}</p>}
               </div>
               <div className="button-row">
-                <button className="secondary-button secondary-button--small" onClick={() => editSection(section)} type="button">
-                  Editar
-                </button>
+                <details className="field-edit">
+                  <summary>Editar seção</summary>
+                  <form
+                    className="form-grid form-grid--two"
+                    onSubmit={(event) => editSection(event, section)}
+                  >
+                    <label>
+                      Nome
+                      <input defaultValue={section.name} maxLength={255} name="name" required />
+                    </label>
+                    <label>
+                      Descrição
+                      <input
+                        defaultValue={section.description ?? ""}
+                        maxLength={10000}
+                        name="description"
+                      />
+                    </label>
+                    <label>
+                      Ordem
+                      <input
+                        defaultValue={section.position}
+                        min={0}
+                        name="position"
+                        required
+                        type="number"
+                      />
+                    </label>
+                    <button className="primary-button form-grid__full" type="submit">Salvar seção</button>
+                  </form>
+                </details>
                 <button className="danger-button" onClick={() => deleteSection(section)} type="button">
                   Remover
                 </button>
@@ -333,6 +351,10 @@ function StructureManager({ campaignId, sections, session, onRefresh }) {
                 <label className="checkbox-label">
                   <input name="required" type="checkbox" />
                   Obrigatório
+                </label>
+                <label>
+                  Ordem
+                  <input defaultValue={section.fields.length} min={0} name="position" required type="number" />
                 </label>
                 <label className="checkbox-label">
                   <input name="shareWithNpcs" type="checkbox" />
